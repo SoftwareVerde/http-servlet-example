@@ -5,7 +5,8 @@ import com.softwareverde.example.api.databasetime.DatabaseTimeApi;
 import com.softwareverde.example.api.servertime.ServerTimeApi;
 import com.softwareverde.httpserver.DirectoryServlet;
 import com.softwareverde.httpserver.HttpServer;
-import com.softwareverde.httpserver.endpoint.Endpoint;
+import com.softwareverde.servlet.Endpoint;
+import com.softwareverde.servlet.Servlet;
 
 import java.io.File;
 
@@ -15,9 +16,11 @@ public class WebServer {
 
     private final HttpServer _apiServer = new HttpServer();
 
-    private <T extends Endpoint> void _assignEndpoint(final String path, final T apiEndpoint) {
-        apiEndpoint.setStrictPathEnabled(true);
-        _apiServer.addEndpoint(path, apiEndpoint);
+    private <T extends Servlet> void _assignEndpoint(final String path, final T servlet) {
+        final Endpoint endpoint = new Endpoint(servlet);
+        endpoint.setPath(path);
+        endpoint.setStrictPathEnabled(true);
+        _apiServer.addEndpoint(endpoint);
     }
 
     public WebServer(final Configuration.ServerProperties serverProperties, final Database database) {
@@ -49,10 +52,14 @@ public class WebServer {
 
         { // Static Content
             final File servedDirectory = new File(_serverProperties.getRootDirectory() +"/");
-            final DirectoryServlet indexEndpoint = new DirectoryServlet(servedDirectory);
-            indexEndpoint.setShouldServeDirectories(true);
-            indexEndpoint.setIndexFile("index.html");
-            _apiServer.addEndpoint("/", indexEndpoint);
+            final DirectoryServlet indexServlet = new DirectoryServlet(servedDirectory);
+            indexServlet.setShouldServeDirectories(true);
+            indexServlet.setIndexFile("index.html");
+
+            final Endpoint endpoint = new Endpoint(indexServlet);
+            endpoint.setPath("/");
+            endpoint.setStrictPathEnabled(false);
+            _apiServer.addEndpoint(endpoint);
         }
 
         _apiServer.start();

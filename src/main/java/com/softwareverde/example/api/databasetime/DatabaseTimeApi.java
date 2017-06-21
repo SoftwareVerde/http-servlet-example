@@ -1,17 +1,17 @@
 package com.softwareverde.example.api.databasetime;
 
 import com.softwareverde.database.Database;
-import com.softwareverde.httpserver.GetParameters;
-import com.softwareverde.httpserver.endpoint.Endpoint;
-import com.softwareverde.httpserver.request.Request;
-import com.softwareverde.httpserver.response.JsonResponse;
-import com.softwareverde.httpserver.response.JsonResult;
-import com.softwareverde.httpserver.response.Response;
+import com.softwareverde.example.api.response.JsonResult;
+import com.softwareverde.servlet.GetParameters;
+import com.softwareverde.servlet.Servlet;
+import com.softwareverde.servlet.request.Request;
+import com.softwareverde.servlet.response.JsonResponse;
+import com.softwareverde.servlet.response.Response;
 import com.softwareverde.util.Util;
 
 import java.util.List;
 
-public class DatabaseTimeApi extends Endpoint {
+public class DatabaseTimeApi implements Servlet {
     protected final Database _database;
 
     public DatabaseTimeApi(final Database database) {
