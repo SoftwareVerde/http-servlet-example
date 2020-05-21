@@ -1,38 +1,32 @@
 package com.softwareverde.example;
 
-import com.softwareverde.database.Database;
-import com.softwareverde.database.mysql.MysqlDatabase;
+import com.softwareverde.database.mysql.*;
+import com.softwareverde.example.configuration.*;
+import com.softwareverde.logging.*;
+import com.softwareverde.logging.log.*;
 
-import java.io.File;
+import java.io.*;
 
 public class Main {
-    private static void _exitFailure() {
+    protected static void _exitFailure() {
         System.exit(1);
     }
 
-    private static void _printError(final String errorMessage) {
+    protected static void _printError(final String errorMessage) {
         System.err.println(errorMessage);
     }
 
-    private static void _printUsage() {
+    protected static void _printUsage() {
         _printError("Usage: java -jar " + System.getProperty("java.class.path") + " <configuration-file>");
     }
 
-    private static Database _loadDatabase(final Configuration.DatabaseProperties databaseProperties) {
-        final MysqlDatabase database = new MysqlDatabase(
-            databaseProperties.getConnectionUrl(),
-            databaseProperties.getUsername(),
-            databaseProperties.getPassword()
-        );
-
-        database.setDatabase(databaseProperties.getSchema());
-
-        database.connect();
-
+    protected static MysqlDatabase _loadDatabase(final DatabaseProperties databaseProperties) {
+        final MysqlDatabase database = new MysqlDatabase(databaseProperties);
+        database.setSchema(databaseProperties.getSchema());
         return database;
     }
 
-    private static Configuration _loadConfigurationFile(final String configurationFilename) {
+    protected static Configuration _loadConfigurationFile(final String configurationFilename) {
         final File configurationFile =  new File(configurationFilename);
         if (! configurationFile.isFile()) {
             _printError("[ERROR: Invalid configuration file.]");
@@ -43,6 +37,10 @@ public class Main {
     }
 
     public static void main(final String[] commandLineArguments) {
+        Logger.setLog(AnnotatedLog.getInstance());
+        Logger.setLogLevel(LogLevel.ON);
+        Logger.setLogLevel("com.softwareverde.util", LogLevel.ERROR);
+
         if (commandLineArguments.length != 1) {
             _printUsage();
             _exitFailure();
@@ -51,21 +49,14 @@ public class Main {
         final String configurationFilename = commandLineArguments[0];
 
         final Configuration configuration = _loadConfigurationFile(configurationFilename);
-        final Database database = _loadDatabase(configuration.getDatabaseProperties());
-        if (! database.isConnected()) {
-            _printError("[NOTICE: Unable to connect to database.]");
-            // _exitFailure();
-        }
+        final MysqlDatabase database = _loadDatabase(configuration.getDatabaseProperties());
 
-        final Configuration.ServerProperties serverProperties = configuration.getServerProperties();
+        final ServerProperties serverProperties = configuration.getServerProperties();
 
-        System.out.println("[Starting Web Server]");
+        Logger.debug("[Starting Web Server]");
         final WebServer webServer = new WebServer(serverProperties, database);
         webServer.start();
 
-        System.out.println("[Server Online]");
-
-        System.out.println();
         while (true) {
             try { Thread.sleep(500); } catch (final Exception e) { }
         }

@@ -1,29 +1,47 @@
 package com.softwareverde.example;
 
-import com.softwareverde.database.Database;
-import com.softwareverde.example.api.databasetime.DatabaseTimeApi;
-import com.softwareverde.example.api.servertime.ServerTimeApi;
-import com.softwareverde.httpserver.DirectoryServlet;
-import com.softwareverde.httpserver.HttpServer;
-import com.softwareverde.servlet.Endpoint;
-import com.softwareverde.servlet.Servlet;
+import com.softwareverde.database.*;
+import com.softwareverde.example.api.databasetime.*;
+import com.softwareverde.example.api.servertime.*;
+import com.softwareverde.example.configuration.*;
+import com.softwareverde.http.server.*;
+import com.softwareverde.http.server.endpoint.*;
+import com.softwareverde.http.server.servlet.*;
+import com.softwareverde.logging.*;
+import com.softwareverde.util.Util;
 
-import java.io.File;
+import java.io.*;
 
 public class WebServer {
-    private final Configuration.ServerProperties _serverProperties;
-    private final Database _database;
+    protected final ServerProperties _serverProperties;
+    protected final Database<?> _database;
 
-    private final HttpServer _apiServer = new HttpServer();
+    protected final HttpServer _apiServer = new HttpServer();
 
-    private <T extends Servlet> void _assignEndpoint(final String path, final T servlet) {
+    protected <T extends Servlet> void _assignEndpoint(final String path, final T servlet) {
         final Endpoint endpoint = new Endpoint(servlet);
         endpoint.setPath(path);
         endpoint.setStrictPathEnabled(true);
         _apiServer.addEndpoint(endpoint);
     }
 
-    public WebServer(final Configuration.ServerProperties serverProperties, final Database database) {
+    protected Boolean _isSslEnabled() {
+        if (_serverProperties.getTlsPort() < 1) {
+            return false;
+        }
+
+        if (Util.isBlank(_serverProperties.getTlsCertificateFile())) {
+            return false;
+        }
+
+        if (Util.isBlank(_serverProperties.getTlsKeyFile())) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public WebServer(final ServerProperties serverProperties, final Database<?> database) {
         _serverProperties = serverProperties;
         _database = database;
     }
@@ -31,10 +49,17 @@ public class WebServer {
     public void start() {
         _apiServer.setPort(_serverProperties.getPort());
 
-        _apiServer.setTlsPort(_serverProperties.getTlsPort());
-        _apiServer.setCertificate(_serverProperties.getTlsCertificateFile(), _serverProperties.getTlsKeyFile());
-        _apiServer.enableEncryption(true);
-        _apiServer.redirectToTls(false);
+        final boolean sslIsEnabled = _isSslEnabled();
+
+        { // Configure SSL/TLS...
+            if (sslIsEnabled) {
+                _apiServer.setTlsPort(_serverProperties.getTlsPort());
+                _apiServer.setCertificate(_serverProperties.getTlsCertificateFile(), _serverProperties.getTlsKeyFile());
+            }
+
+            _apiServer.enableEncryption(sslIsEnabled);
+            _apiServer.redirectToTls(false);
+        }
 
         { // Server Time Api
             // Path:                /api/server/time
@@ -63,6 +88,10 @@ public class WebServer {
         }
 
         _apiServer.start();
+
+        final Integer httpPort = _serverProperties.getPort();
+        final Integer tlsPort = _serverProperties.getTlsPort();
+        Logger.debug("[Server Listening on " + httpPort + (sslIsEnabled ? (" / " + tlsPort) : "") + "]");
     }
 
     public void stop() {
